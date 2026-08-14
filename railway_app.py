@@ -19,11 +19,12 @@ def _should_patch_s3() -> bool:
 # keeps the rest of the upstream code untouched.
 if _should_patch_s3():
     from services import s3_toolkit
+
     from railway_storage import upload_to_s3
 
     s3_toolkit.upload_to_s3 = upload_to_s3
 
-from app import app as app  # noqa: E402
+from app import app as app
 
 
 @app.get("/healthz")
