@@ -1,0 +1,16 @@
+services:
+  nca-toolkit:
+    build:
+      context: .
+    init: true
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    environment:
+      API_KEY: "${API_KEY:-local-development-key-change-me}"
+      PORT: "${PORT:-8080}"
+      GUNICORN_WORKERS: "${GUNICORN_WORKERS:-1}"
+      GUNICORN_TIMEOUT: "${GUNICORN_TIMEOUT:-600}"
+      GUNICORN_KEEPALIVE: "${GUNICORN_KEEPALIVE:-80}"
+      MAX_QUEUE_LENGTH: "${MAX_QUEUE_LENGTH:-5}"
+      LOCAL_STORAGE_PATH: "${LOCAL_STORAGE_PATH:-/tmp/nca-toolkit}"
+    stop_grace_period: 30s
