@@ -31,9 +31,7 @@ def _is_railway_storage(endpoint: str) -> bool:
     return (urlsplit(endpoint).hostname or "").lower() == RAILWAY_STORAGE_HOST
 
 
-def _client(
-    *, endpoint: str, access_key: str, secret_key: str, region: str, addressing_style: str
-):
+def _client(*, endpoint: str, access_key: str, secret_key: str, region: str, addressing_style: str):
     session = boto3.Session(
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
@@ -65,9 +63,7 @@ def _presign_expiry(*, railway_storage: bool) -> int:
         raise ValueError("S3_PRESIGNED_URL_EXPIRY must be an integer number of seconds") from exc
 
     max_expiry = (
-        RAILWAY_MAX_PRESIGN_EXPIRY_SECONDS
-        if railway_storage
-        else AWS_MAX_PRESIGN_EXPIRY_SECONDS
+        RAILWAY_MAX_PRESIGN_EXPIRY_SECONDS if railway_storage else AWS_MAX_PRESIGN_EXPIRY_SECONDS
     )
     if expiry < 60 or expiry > max_expiry:
         raise ValueError(f"S3_PRESIGNED_URL_EXPIRY must be between 60 and {max_expiry} seconds")
