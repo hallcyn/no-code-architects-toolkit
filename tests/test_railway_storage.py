@@ -12,7 +12,7 @@ class FakeS3Client:
     uploads: list[dict] = field(default_factory=list)
     presigns: list[dict] = field(default_factory=list)
 
-    def upload_fileobj(self, data, bucket, key, ExtraArgs=None):  # noqa: N803
+    def upload_fileobj(self, data, bucket, key, ExtraArgs=None):
         self.uploads.append(
             {
                 "content": data.read(),
@@ -22,7 +22,7 @@ class FakeS3Client:
             }
         )
 
-    def generate_presigned_url(self, operation, *, Params, ExpiresIn):  # noqa: N803
+    def generate_presigned_url(self, operation, *, Params, ExpiresIn):
         self.presigns.append(
             {"operation": operation, "params": Params, "expires_in": ExpiresIn}
         )
