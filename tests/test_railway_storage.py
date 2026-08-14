@@ -23,9 +23,7 @@ class FakeS3Client:
         )
 
     def generate_presigned_url(self, operation, *, Params, ExpiresIn):
-        self.presigns.append(
-            {"operation": operation, "params": Params, "expires_in": ExpiresIn}
-        )
+        self.presigns.append({"operation": operation, "params": Params, "expires_in": ExpiresIn})
         return "https://signed.example/result"
 
 
