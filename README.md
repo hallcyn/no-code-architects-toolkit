@@ -144,7 +144,27 @@ ARG NCA_UPSTREAM_COMMIT=d9bb5679e203e6b5d3b3c2b9ab848a289c645024
 
 Do not point this at a branch or `latest`. Update the SHA intentionally, review the upstream diff, then let CI rebuild the image and verify the runtime contract before merging.
 
-PyTorch is also intentionally pinned and installed through the CPU wheel index. Dependabot monitors Docker base images and GitHub Actions; application-source revisions remain a deliberate update because they can change API behavior.
+### Monthly upstream watcher
+
+`.github/workflows/upstream-check.yml` runs on the **first day of every month** and can also be triggered manually. It selects the upstream source in this order:
+
+1. newest non-draft, non-prerelease GitHub Release, when upstream publishes releases;
+2. newest stable-looking Git tag, when upstream publishes tags but no stable release;
+3. the upstream default-branch HEAD when releases and stable tags do not exist.
+
+That third fallback is currently necessary because NCA Toolkit publishes neither GitHub Releases nor tags and versions the application with `build_number.txt` / `version.py` on `main`.
+
+When the selected candidate is newer than `NCA_UPSTREAM_COMMIT`, the workflow creates one idempotent `upstream-update` issue containing the current and candidate builds/SHAs, upstream compare link, commit summary, changed files and the CPU/Railway validation checklist required before an update PR can merge. The candidate SHA is embedded in the issue so future monthly runs do not create duplicates, even after the issue is closed.
+
+The watcher does **not** automatically modify the pin. Upstream does not publish a separate CPU release; CPU safety is provided by this repository's packaging and runtime contract, so each source update remains an explicit reviewed PR.
+
+Run the detection locally without creating an issue:
+
+```bash
+make check-upstream
+```
+
+PyTorch is also intentionally pinned and installed through the CPU wheel index. Dependabot monitors Docker base images and GitHub Actions.
 
 ## Validation
 
@@ -154,13 +174,13 @@ Run the same fast lint, unit-test, and configuration checks used by CI:
 make check
 ```
 
-CI runs Ruff, Ruff formatting checks, yamllint, ShellCheck, unit tests on Python 3.10 and 3.14, Docker Compose validation, and Dockerfile build checks.
+CI runs Ruff, Ruff formatting checks, yamllint, ShellCheck, unit tests on Python 3.11 and 3.14, Docker Compose validation, and Dockerfile build checks.
 
 The runtime workflow additionally builds the real Railway image and checks:
 
 - PyTorch reports no CUDA runtime;
 - the baked Whisper model exists;
-- Playwright can locate Chromium;
+- Playwright launches Chromium and loads a page;
 - required FFmpeg codecs/filters are enabled;
 - `/healthz` responds;
 - a valid API key succeeds;
@@ -183,4 +203,4 @@ This project is an independent Railway deployment wrapper and is not an official
 
 ## License
 
-GNU GPL v2. See [`LICENSE`](LICENSE).
+GNU GPL v2 or later. See [`LICENSE`](LICENSE).
