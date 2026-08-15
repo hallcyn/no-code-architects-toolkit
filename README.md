@@ -1,12 +1,12 @@
 # No-Code Architects Toolkit for Railway
 
-A Railway-first deployment wrapper for the [No-Code Architects Toolkit](https://github.com/stephengpope/no-code-architects-toolkit): FFmpeg/media processing, transcription, screenshots, file conversion and automation APIs in one self-hosted service.
+A Railway-first deployment of the [No-Code Architects Toolkit](https://github.com/stephengpope/no-code-architects-toolkit): FFmpeg/media processing, transcription, screenshots, file conversion and automation APIs in one self-hosted service.
 
-This repository does **not** fork or vendor the upstream application. It layers a small amount of Railway-specific behavior on top of the official Docker image so deployments stay simple and upstream remains the source of truth.
+This repository does **not** fork or vendor the upstream application. The Docker build fetches an exact upstream Git commit, then creates a Railway-oriented CPU image around it. Upstream remains the application source of truth while this repository owns deployment, storage integration, reproducibility and runtime validation.
 
 ## Why this wrapper exists
 
-The upstream Docker deployment works, but a good Railway template needs a few extra guarantees:
+A good Railway template needs a few guarantees that the generic upstream deployment does not provide:
 
 - predictable `PORT` handling instead of a hard-coded listener;
 - a dedicated unauthenticated `/healthz` endpoint for Railway deploy healthchecks;
@@ -14,7 +14,9 @@ The upstream Docker deployment works, but a good Railway template needs a few ex
 - conservative worker/queue defaults for CPU-heavy media jobs;
 - native Railway Bucket support for endpoints that need S3 storage;
 - private-bucket compatibility using presigned result URLs instead of `public-read` ACLs;
-- a reproducible upstream image pinned by digest.
+- an exact upstream source revision instead of a moving image tag;
+- **CPU-only PyTorch**, so Railway deployments do not ship unused NVIDIA/CUDA libraries;
+- automated checks that verify Whisper, Chromium and the expected FFmpeg capabilities at runtime.
 
 The intended Railway template is just **one application service + one Railway Bucket**. No Traefik, database, Redis, or reverse proxy is required.
 
@@ -30,6 +32,7 @@ Change `API_KEY` in `.env`, then:
 
 ```bash
 docker compose up -d --build
+./scripts/runtime-contract.sh
 ./scripts/smoke-test.sh
 ```
 
@@ -37,12 +40,13 @@ Or with Make:
 
 ```bash
 make up
+make runtime-contract
 make smoke
 ```
 
 The API is available at `http://localhost:8080` by default.
 
-> The upstream image is large because it contains FFmpeg/codecs, Whisper and Chromium. The first Docker pull/build is therefore much heavier than a normal web API image; subsequent builds reuse the local image cache.
+The first build still downloads FFmpeg dependencies, a CPU PyTorch wheel, the Whisper `base` model and Chromium, so it is intentionally heavier than a normal web API build. It no longer inherits the upstream CUDA/NVIDIA image.
 
 ### Verify manually
 
@@ -111,15 +115,18 @@ Most endpoints that create files need an S3-compatible or GCP storage provider. 
 | `S3_UPLOAD_ACL` | Advanced: optional ACL for non-Railway S3 providers. Never applied to Railway Buckets. |
 | `NCA_S3_COMPAT_MODE` | Force this wrapper's S3 adapter for a non-Railway endpoint. |
 
-## What the wrapper changes
+## What this repository changes
 
-The upstream application code remains in the official Docker image. This repo only:
+The upstream application source is fetched during the Docker build at the commit declared by `NCA_UPSTREAM_COMMIT`. This repository then:
 
-1. starts Gunicorn on `$PORT`;
-2. registers `/healthz`;
-3. replaces the upstream S3 upload function at process startup when Railway Bucket compatibility is needed.
+1. installs PyTorch from the official CPU-only wheel index;
+2. installs the upstream Python dependencies, Whisper and Playwright Chromium;
+3. uses the distribution FFmpeg build instead of compiling a GPU-oriented monolithic image;
+4. starts Gunicorn on `$PORT`;
+5. registers `/healthz`;
+6. replaces the upstream S3 upload function at process startup when Railway Bucket compatibility is needed.
 
-For normal non-Railway S3 providers, upstream behavior remains available. For Railway Buckets, uploads intentionally omit the unsupported/public ACL assumption and return a time-limited presigned URL instead.
+For normal non-Railway S3 providers, upstream-style public URL behavior remains available. For Railway Buckets, uploads intentionally omit the public ACL assumption and return a time-limited presigned URL instead.
 
 ## Security
 
@@ -129,13 +136,15 @@ Read [`SECURITY.md`](SECURITY.md) before publishing a public template.
 
 ## Updating upstream
 
-The Dockerfile pins the official image by digest:
+The Dockerfile pins the application source explicitly:
 
 ```dockerfile
-FROM stephengpope/no-code-architects-toolkit:latest@sha256:...
+ARG NCA_UPSTREAM_COMMIT=d9bb5679e203e6b5d3b3c2b9ab848a289c645024
 ```
 
-This prevents an upstream `latest` push from silently changing every new deployment. Dependabot is configured to propose Docker updates monthly; review and smoke-test those updates before merging.
+Do not point this at a branch or `latest`. Update the SHA intentionally, review the upstream diff, then let CI rebuild the image and verify the runtime contract before merging.
+
+PyTorch is also intentionally pinned and installed through the CPU wheel index. Dependabot monitors Docker base images and GitHub Actions; application-source revisions remain a deliberate update because they can change API behavior.
 
 ## Validation
 
@@ -145,20 +154,29 @@ Run the same fast lint, unit-test, and configuration checks used by CI:
 make check
 ```
 
-CI runs Ruff, Ruff formatting checks, yamllint, ShellCheck, unit tests on Python 3.10 and 3.14, Docker Compose validation, and Dockerfile build checks. A separate runtime workflow boots the real pinned upstream image for wrapper changes and on a weekly schedule.
+CI runs Ruff, Ruff formatting checks, yamllint, ShellCheck, unit tests on Python 3.10 and 3.14, Docker Compose validation, and Dockerfile build checks.
 
-Runtime smoke test after `docker compose up`:
+The runtime workflow additionally builds the real Railway image and checks:
+
+- PyTorch reports no CUDA runtime;
+- the baked Whisper model exists;
+- Playwright can locate Chromium;
+- required FFmpeg codecs/filters are enabled;
+- `/healthz` responds;
+- a valid API key succeeds;
+- an invalid API key is rejected.
+
+After a local build:
 
 ```bash
+make runtime-contract
 make smoke
 ```
-
-The smoke test verifies health, a valid API key, and rejection of an invalid API key.
 
 ## Upstream
 
 - Application: `stephengpope/no-code-architects-toolkit`
-- Official image: `stephengpope/no-code-architects-toolkit`
+- Pinned source revision: see `NCA_UPSTREAM_COMMIT` in [`Dockerfile`](Dockerfile)
 - Upstream license: GNU GPL v2
 
 This project is an independent Railway deployment wrapper and is not an official No-Code Architects project.
