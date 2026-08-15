@@ -27,7 +27,7 @@ import os
 from pathlib import Path
 
 cache = Path(os.environ["WHISPER_CACHE_DIR"])
-models = list(cache.glob("*.pt"))
+models = sorted(cache.glob("*.pt"))
 assert models, f"No Whisper model found in {cache}"
 print("whisper_models=" + ",".join(path.name for path in models))
 PY
@@ -40,6 +40,13 @@ from playwright.sync_api import sync_playwright
 with sync_playwright() as playwright:
     executable = Path(playwright.chromium.executable_path)
     assert executable.exists(), f"Chromium executable missing: {executable}"
+    browser = playwright.chromium.launch(headless=True)
+    try:
+        page = browser.new_page()
+        page.set_content("<title>runtime-contract</title>")
+        assert page.title() == "runtime-contract"
+    finally:
+        browser.close()
     print(f"chromium={executable}")
 PY
 
