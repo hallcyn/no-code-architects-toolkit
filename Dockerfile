@@ -7,7 +7,7 @@ ARG TORCH_VERSION=2.6.0
 
 LABEL org.opencontainers.image.title="No-Code Architects Toolkit for Railway" \
       org.opencontainers.image.source="https://github.com/hallcyn/no-code-architects-toolkit" \
-      org.opencontainers.image.licenses="GPL-2.0-only" \
+      org.opencontainers.image.licenses="GPL-2.0-or-later" \
       io.hallcyn.nca.upstream="https://github.com/stephengpope/no-code-architects-toolkit" \
       io.hallcyn.nca.upstream-commit="${NCA_UPSTREAM_COMMIT}"
 
