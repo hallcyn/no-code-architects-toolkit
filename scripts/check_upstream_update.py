@@ -94,7 +94,9 @@ def _resolve_commit(client: GitHubClient, repo: str, ref: str) -> dict[str, Any]
 
 def select_candidate(client: GitHubClient, upstream_repo: str) -> Candidate:
     releases = client.request_json("GET", _repo_path(upstream_repo, "releases?per_page=100"))
-    stable_releases = [release for release in releases if not release["draft"] and not release["prerelease"]]
+    stable_releases = [
+        release for release in releases if not release["draft"] and not release["prerelease"]
+    ]
     if stable_releases:
         release = max(
             stable_releases,
@@ -136,9 +138,7 @@ def select_candidate(client: GitHubClient, upstream_repo: str) -> Candidate:
     default_branch = repo["default_branch"]
     commit = _resolve_commit(client, upstream_repo, default_branch)
     commit_date = (
-        commit["commit"]["committer"].get("date")
-        or commit["commit"]["author"].get("date")
-        or None
+        commit["commit"]["committer"].get("date") or commit["commit"]["author"].get("date") or None
     )
     return Candidate(
         kind="default-branch",
@@ -284,14 +284,14 @@ The monthly watcher found a newer NCA Toolkit source candidate than the commit p
 
 - Source: `{upstream_repo}`
 - Commit: [`{pinned_sha}`](https://github.com/{upstream_repo}/commit/{pinned_sha})
-- Upstream build: `{pinned_build or 'not available'}`
+- Upstream build: `{pinned_build or "not available"}`
 
 ### Candidate
 
 - Selection mode: **{candidate.label}**
 - Ref: `{candidate.ref}`
 - Commit: [`{candidate.sha}`](https://github.com/{upstream_repo}/commit/{candidate.sha})
-- Upstream build: `{candidate_build or 'not available'}`
+- Upstream build: `{candidate_build or "not available"}`
 - Published/committed: `{published_line}`
 - Source: {candidate.source_url}
 
@@ -397,7 +397,9 @@ def write_job_summary(message: str) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Check the pinned NCA upstream revision for updates")
+    parser = argparse.ArgumentParser(
+        description="Check the pinned NCA upstream revision for updates"
+    )
     parser.add_argument("--dockerfile", type=Path, default=Path("Dockerfile"))
     parser.add_argument("--upstream-repo", default=DEFAULT_UPSTREAM_REPO)
     parser.add_argument("--target-repo", default=os.environ.get("GITHUB_REPOSITORY"))
@@ -461,8 +463,7 @@ def main() -> int:
     if duplicate:
         print(f"Update already tracked: {duplicate}")
         write_job_summary(
-            "## NCA upstream check\n\n"
-            f"Update **{candidate_label}** is already tracked: {duplicate}"
+            f"## NCA upstream check\n\nUpdate **{candidate_label}** is already tracked: {duplicate}"
         )
         return 0
 
