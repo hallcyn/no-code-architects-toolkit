@@ -1,4 +1,4 @@
-.PHONY: up down logs smoke lint test validate-config check
+.PHONY: up down logs smoke runtime-contract lint test validate-config check
 
 up:
 	docker compose up -d --build
@@ -12,11 +12,14 @@ logs:
 smoke:
 	./scripts/smoke-test.sh
 
+runtime-contract:
+	./scripts/runtime-contract.sh
+
 lint:
 	ruff check .
 	ruff format --check .
 	yamllint .github docker-compose.yml .yamllint.yml
-	shellcheck entrypoint.sh scripts/smoke-test.sh
+	shellcheck entrypoint.sh scripts/runtime-contract.sh scripts/smoke-test.sh
 
 test:
 	python -m pytest
