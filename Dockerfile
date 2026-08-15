@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.10-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 ARG NCA_UPSTREAM_COMMIT=d9bb5679e203e6b5d3b3c2b9ab848a289c645024
 ARG TORCH_VERSION=2.6.0
@@ -16,7 +16,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
-    WHISPER_CACHE_DIR=/app/whisper_cache \
+    XDG_CACHE_HOME=/app/cache \
+    WHISPER_CACHE_DIR=/app/cache/whisper \
     PORT=8080 \
     GUNICORN_WORKERS=1 \
     GUNICORN_TIMEOUT=600 \
@@ -68,17 +69,17 @@ RUN python -m playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
-    && mkdir -p "${WHISPER_CACHE_DIR}" "${LOCAL_STORAGE_PATH}" \
-    && chown -R appuser:appuser /app "${WHISPER_CACHE_DIR}" "${LOCAL_STORAGE_PATH}"
+    && mkdir -p "${XDG_CACHE_HOME}" "${WHISPER_CACHE_DIR}" "${LOCAL_STORAGE_PATH}" \
+    && chown -R appuser:appuser /app "${XDG_CACHE_HOME}" "${LOCAL_STORAGE_PATH}"
 
 COPY --chown=appuser:appuser railway_app.py railway_storage.py /app/
 COPY --chmod=0755 entrypoint.sh /usr/local/bin/nca-railway-entrypoint
 
 USER appuser
 
-# Match upstream behavior by baking the Whisper base model into the image so a
-# production request never depends on a writable home directory or a model
-# download at runtime.
+# OpenAI Whisper resolves its default download directory from XDG_CACHE_HOME.
+# NCA calls whisper.load_model("base") without a custom path, so preloading the
+# model here makes production calls reuse this exact baked checkpoint.
 RUN python -c "import whisper; whisper.load_model('base')"
 
 EXPOSE 8080
