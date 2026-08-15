@@ -1,0 +1,71 @@
+name: Runtime smoke
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "entrypoint.sh"
+      - "railway_app.py"
+      - "railway_storage.py"
+      - "scripts/runtime-contract.sh"
+      - "scripts/smoke-test.sh"
+  push:
+    branches:
+      - main
+    paths:
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "entrypoint.sh"
+      - "railway_app.py"
+      - "railway_storage.py"
+      - "scripts/runtime-contract.sh"
+      - "scripts/smoke-test.sh"
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Report initial disk space
+        run: df -h /
+
+      - name: Build and start NCA Toolkit
+        env:
+          API_KEY: ci-local-development-key-change-me
+        run: docker compose up --detach --build
+
+      - name: Report built image size
+        run: |
+          image_id="$(docker compose images -q nca-toolkit)"
+          docker image inspect "$image_id" --format 'image_size_bytes={{.Size}}'
+          df -h /
+
+      - name: Verify CPU runtime contract
+        run: ./scripts/runtime-contract.sh
+
+      - name: Run API smoke test
+        env:
+          API_KEY: ci-local-development-key-change-me
+        run: ./scripts/smoke-test.sh
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Tear down containers
+        if: always()
+        run: docker compose down --remove-orphans
