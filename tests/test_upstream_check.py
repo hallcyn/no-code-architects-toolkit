@@ -31,8 +31,7 @@ class FakeClient:
 def test_read_pinned_commit(tmp_path: Path) -> None:
     dockerfile = tmp_path / "Dockerfile"
     dockerfile.write_text(
-        "FROM python:3.11-slim\n"
-        "ARG NCA_UPSTREAM_COMMIT=0123456789abcdef0123456789abcdef01234567\n"
+        "FROM python:3.11-slim\nARG NCA_UPSTREAM_COMMIT=0123456789abcdef0123456789abcdef01234567\n"
     )
 
     assert read_pinned_commit(dockerfile) == "0123456789abcdef0123456789abcdef01234567"
