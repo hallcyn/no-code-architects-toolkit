@@ -1,4 +1,4 @@
-.PHONY: up down logs smoke runtime-contract lint test validate-config check
+.PHONY: up down logs smoke runtime-contract check-upstream lint test validate-config check
 
 up:
 	docker compose up -d --build
@@ -14,6 +14,9 @@ smoke:
 
 runtime-contract:
 	./scripts/runtime-contract.sh
+
+check-upstream:
+	python scripts/check_upstream_update.py --dry-run
 
 lint:
 	ruff check .
