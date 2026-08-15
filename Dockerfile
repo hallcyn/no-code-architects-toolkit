@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ARG NCA_UPSTREAM_COMMIT=d9bb5679e203e6b5d3b3c2b9ab848a289c645024
 ARG TORCH_VERSION=2.6.0
