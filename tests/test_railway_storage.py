@@ -34,7 +34,51 @@ def test_truthy_values():
         assert not railway_storage._truthy(value)
 
 
-def test_railway_upload_defaults_to_private_presigned_url(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("endpoint", "expected"),
+    [
+        ("https://storage.railway.app", True),
+        ("https://bucket.storage.railway.app", True),
+        ("https://t3.storageapi.dev", True),
+        ("https://bucket.t3.storageapi.dev", True),
+        ("https://storageapi.dev", True),
+        ("https://objects.example.com", False),
+        ("https://storageapi.dev.example.com", False),
+    ],
+)
+def test_railway_storage_endpoint_detection(endpoint, expected):
+    assert railway_storage.is_railway_storage_endpoint(endpoint) is expected
+
+
+def test_s3_compat_is_enabled_for_presigned_urls(monkeypatch):
+    monkeypatch.setenv("S3_ENDPOINT_URL", "https://objects.example.com")
+    monkeypatch.setenv("S3_RETURN_PRESIGNED_URL", "true")
+    monkeypatch.delenv("NCA_S3_COMPAT_MODE", raising=False)
+
+    assert railway_storage.should_enable_s3_compat()
+
+
+def test_s3_compat_is_enabled_for_regional_railway_endpoint(monkeypatch):
+    monkeypatch.setenv("S3_ENDPOINT_URL", "https://t3.storageapi.dev")
+    monkeypatch.delenv("S3_RETURN_PRESIGNED_URL", raising=False)
+    monkeypatch.delenv("NCA_S3_COMPAT_MODE", raising=False)
+
+    assert railway_storage.should_enable_s3_compat()
+
+
+def test_s3_compat_is_disabled_for_generic_s3_by_default(monkeypatch):
+    monkeypatch.setenv("S3_ENDPOINT_URL", "https://objects.example.com")
+    monkeypatch.delenv("S3_RETURN_PRESIGNED_URL", raising=False)
+    monkeypatch.delenv("NCA_S3_COMPAT_MODE", raising=False)
+
+    assert not railway_storage.should_enable_s3_compat()
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["https://storage.railway.app", "https://t3.storageapi.dev"],
+)
+def test_railway_upload_defaults_to_private_presigned_url(tmp_path, monkeypatch, endpoint):
     file_path = tmp_path / "hello world.txt"
     file_path.write_bytes(b"payload")
     client = FakeS3Client()
@@ -52,7 +96,7 @@ def test_railway_upload_defaults_to_private_presigned_url(tmp_path, monkeypatch)
 
     result = railway_storage.upload_to_s3(
         file_path,
-        "https://storage.railway.app",
+        endpoint,
         "access",
         "secret",
         "bucket-123",
@@ -62,7 +106,7 @@ def test_railway_upload_defaults_to_private_presigned_url(tmp_path, monkeypatch)
     assert result == "https://signed.example/result"
     assert calls == [
         {
-            "endpoint": "https://storage.railway.app",
+            "endpoint": endpoint,
             "access_key": "access",
             "secret_key": "secret",
             "region": "auto",
@@ -89,7 +133,7 @@ def test_railway_ignores_public_acl(tmp_path, monkeypatch):
 
     railway_storage.upload_to_s3(
         file_path,
-        "https://storage.railway.app",
+        "https://t3.storageapi.dev",
         "access",
         "secret",
         "bucket",
@@ -158,7 +202,7 @@ def test_presigned_url_can_use_a_separate_public_endpoint(tmp_path, monkeypatch)
     [
         ("https://s3.amazonaws.com", "59", railway_storage.AWS_MAX_PRESIGN_EXPIRY_SECONDS),
         (
-            "https://storage.railway.app",
+            "https://t3.storageapi.dev",
             str(railway_storage.RAILWAY_MAX_PRESIGN_EXPIRY_SECONDS + 1),
             railway_storage.RAILWAY_MAX_PRESIGN_EXPIRY_SECONDS,
         ),
