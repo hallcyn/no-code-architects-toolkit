@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-import os
-
-
-def _truthy(value: str | None) -> bool:
-    return bool(value and value.strip().lower() in {"1", "true", "yes", "on"})
-
 
 def _should_patch_s3() -> bool:
-    endpoint = os.getenv("S3_ENDPOINT_URL", "").lower()
-    return "storage.railway.app" in endpoint or _truthy(os.getenv("NCA_S3_COMPAT_MODE"))
+    from railway_storage import should_enable_s3_compat
+
+    return should_enable_s3_compat()
 
 
 # Patch before importing the upstream Flask app. ``services.cloud_storage``

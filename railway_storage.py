@@ -16,6 +16,7 @@ import boto3
 from botocore.config import Config
 
 RAILWAY_STORAGE_HOST = "storage.railway.app"
+RAILWAY_STORAGEAPI_SUFFIX = ".storageapi.dev"
 AWS_MAX_PRESIGN_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 RAILWAY_MAX_PRESIGN_EXPIRY_SECONDS = 90 * 24 * 60 * 60
 DEFAULT_PRESIGN_EXPIRY_SECONDS = 7 * 24 * 60 * 60
@@ -27,8 +28,31 @@ def _truthy(value: str | None, *, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _is_railway_storage(endpoint: str) -> bool:
-    return (urlsplit(endpoint).hostname or "").lower() == RAILWAY_STORAGE_HOST
+def is_railway_storage_endpoint(endpoint: str) -> bool:
+    """Return whether an S3 endpoint belongs to Railway Buckets.
+
+    Railway documents ``storage.railway.app`` as the canonical endpoint, while
+    deployed buckets can also expose regional ``*.storageapi.dev`` endpoints.
+    Support both so private-object handling does not depend on one hostname.
+    """
+
+    hostname = (urlsplit(endpoint).hostname or "").lower()
+    return (
+        hostname == RAILWAY_STORAGE_HOST
+        or hostname.endswith(f".{RAILWAY_STORAGE_HOST}")
+        or hostname == RAILWAY_STORAGEAPI_SUFFIX.removeprefix(".")
+        or hostname.endswith(RAILWAY_STORAGEAPI_SUFFIX)
+    )
+
+
+def should_enable_s3_compat() -> bool:
+    """Return whether the Railway/private-S3 adapter should patch upstream."""
+
+    return (
+        is_railway_storage_endpoint(os.getenv("S3_ENDPOINT_URL", ""))
+        or _truthy(os.getenv("S3_RETURN_PRESIGNED_URL"))
+        or _truthy(os.getenv("NCA_S3_COMPAT_MODE"))
+    )
 
 
 def _client(*, endpoint: str, access_key: str, secret_key: str, region: str, addressing_style: str):
@@ -79,7 +103,7 @@ def upload_to_s3(file_path, s3_url, access_key, secret_key, bucket_name, region)
     """
 
     endpoint = str(s3_url).rstrip("/")
-    railway_storage = _is_railway_storage(endpoint)
+    railway_storage = is_railway_storage_endpoint(endpoint)
 
     addressing_style = os.getenv("S3_ADDRESSING_STYLE", "").strip().lower()
     if addressing_style not in {"path", "virtual"}:

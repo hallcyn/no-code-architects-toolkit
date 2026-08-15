@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Recognize Railway regional `*.storageapi.dev` Bucket endpoints and enable the private-S3 compatibility adapter whenever presigned result URLs are requested, preventing generated files from being returned as inaccessible private object URLs.
+
 ## 0.1.0 - 2026-08-15
 
 - Initial Railway-first packaging of the No-Code Architects Toolkit.
