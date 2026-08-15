@@ -1,5 +1,11 @@
 # No-Code Architects Toolkit for Railway
 
+Deploy your own No-Code Architects Toolkit on Railway in under 5 minutes.  
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/no-code-architects-toolkit?referralCode=0fPTYP&utm_medium=integration&utm_source=template&utm_campaign=generic)
+
+------
+
 A Railway-first deployment of the [No-Code Architects Toolkit](https://github.com/stephengpope/no-code-architects-toolkit): FFmpeg/media processing, transcription, screenshots, file conversion and automation APIs in one self-hosted service.
 
 This repository does **not** fork or vendor the upstream application. The Docker build fetches an exact upstream Git commit, then creates a Railway-oriented CPU image around it. Upstream remains the application source of truth while this repository owns deployment, storage integration, reproducibility and runtime validation.
