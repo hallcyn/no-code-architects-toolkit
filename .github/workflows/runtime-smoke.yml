@@ -5,22 +5,26 @@ on:
     paths:
       - "Dockerfile"
       - "docker-compose.yml"
+      - "docker-compose.runtime.yml"
       - "entrypoint.sh"
       - "railway_app.py"
       - "railway_storage.py"
       - "scripts/runtime-contract.sh"
       - "scripts/smoke-test.sh"
+      - "scripts/storage-smoke-test.sh"
   push:
     branches:
       - main
     paths:
       - "Dockerfile"
       - "docker-compose.yml"
+      - "docker-compose.runtime.yml"
       - "entrypoint.sh"
       - "railway_app.py"
       - "railway_storage.py"
       - "scripts/runtime-contract.sh"
       - "scripts/smoke-test.sh"
+      - "scripts/storage-smoke-test.sh"
   schedule:
     - cron: "17 5 * * 1"
   workflow_dispatch:
@@ -36,6 +40,9 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      API_KEY: ci-local-development-key-change-me
+      COMPOSE_FILE: docker-compose.yml:docker-compose.runtime.yml
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -43,10 +50,39 @@ jobs:
       - name: Report initial disk space
         run: df -h /
 
-      - name: Build and start NCA Toolkit
-        env:
-          API_KEY: ci-local-development-key-change-me
+      - name: Build and start NCA Toolkit with MinIO
         run: docker compose up --detach --build
+
+      - name: Wait for MinIO and create test bucket
+        run: |
+          ready=false
+          for _ in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" != "true" ]]; then
+            echo >&2 "ERROR: MinIO did not become ready"
+            exit 1
+          fi
+
+          docker compose exec -T nca-toolkit python - <<'PY'
+          import boto3
+          from botocore.config import Config
+
+          client = boto3.client(
+              "s3",
+              endpoint_url="http://minio:9000",
+              aws_access_key_id="minio-ci-access",
+              aws_secret_access_key="minio-ci-secret-change-me",
+              region_name="us-east-1",
+              config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
+          )
+          client.create_bucket(Bucket="nca-ci")
+          print("MinIO test bucket: OK")
+          PY
 
       - name: Report built image size
         run: |
@@ -58,9 +94,10 @@ jobs:
         run: ./scripts/runtime-contract.sh
 
       - name: Run API smoke test
-        env:
-          API_KEY: ci-local-development-key-change-me
         run: ./scripts/smoke-test.sh
+
+      - name: Run S3 storage smoke test
+        run: ./scripts/storage-smoke-test.sh
 
       - name: Show container logs on failure
         if: failure()
