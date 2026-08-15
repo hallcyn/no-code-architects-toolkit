@@ -1,10 +1,10 @@
 # Railway template setup
 
-This repository is intentionally only the application wrapper. The public Railway template should compose two Railway resources so end users do not have to bring their own object storage.
+This repository packages the application for Railway. The public template should compose two Railway resources so end users do not have to bring their own object storage.
 
 ## Resources
 
-1. `nca-toolkit` — GitHub service using this repository.
+1. `nca-toolkit` — GitHub service using this repository and its CPU-native Dockerfile.
 2. `nca-storage` — Railway Bucket in the same project/environment.
 
 The upstream toolkit needs S3/GCP storage for many endpoints that generate files. Railway Buckets are S3-compatible and expose credentials as reference variables, so the template can wire everything automatically.
@@ -17,6 +17,7 @@ The upstream toolkit needs S3/GCP storage for many endpoints that generate files
 - Target port: `8080`
 - Healthcheck: `/healthz`
 - Replicas: `1` by default
+- GPU: not required; the image intentionally uses CPU-only PyTorch
 
 ## Variables
 
@@ -53,8 +54,10 @@ Suggested tags: `automation`, `n8n`, `media`, `ffmpeg`, `api`, `self-hosted`.
 ## Before publishing
 
 - Deploy the template into a fresh Railway project, not an existing development project.
+- Confirm the image builds from a clean cache without pulling CUDA/NVIDIA runtime packages.
 - Confirm `/healthz` is green without an API key header.
 - Call `/v1/toolkit/authenticate` with the generated `API_KEY` and verify HTTP 200.
 - Run one file-producing endpoint and verify the returned URL is a working presigned Railway Bucket URL.
 - Confirm a wrong API key returns HTTP 401.
+- Run the repository runtime contract and confirm Torch is CPU-only, Whisper is baked in, Chromium is present, and the required FFmpeg capabilities exist.
 - Confirm the service remains single-replica unless upstream queueing is redesigned for distributed workers.
