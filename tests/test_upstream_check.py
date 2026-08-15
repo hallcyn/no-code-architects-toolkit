@@ -201,10 +201,9 @@ def test_issue_body_contains_update_context_and_cpu_gate() -> None:
     )
 
     assert f"<!-- nca-upstream-sha: {candidate_sha} -->" in body
-    assert "Build" not in issue_title("219", "220", pinned_sha, candidate_sha)
-    assert "NCA Toolkit Build 219 -> Build 220" == issue_title(
-        "219", "220", pinned_sha, candidate_sha
-    ).removeprefix("chore(upstream): ")
+    assert issue_title("219", "220", pinned_sha, candidate_sha) == (
+        "chore(upstream): NCA Toolkit Build 219 -> Build 220"
+    )
     assert "requirements.txt" in body
     assert "torch.version.cuda is None" in body
     assert "make runtime-contract" in body
